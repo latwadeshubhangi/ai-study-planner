@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Study Planner</title>
+<style>
+:root{--ink:#1d2433;--muted:#5d6678;--paper:#f3f6fb;--card:#fff;--line:#d9e0ec;--navy:#1f3a68;--sky:#2f6fdb;--hi:#c0392b;--md:#b7791f;--lo:#2f855a;--r:10px}
+*{box-sizing:border-box}
+body{margin:0;font:16px/1.55 "Segoe UI",system-ui,sans-serif;color:var(--ink);background:var(--paper)}
+header{background:var(--navy);color:#fff;padding:28px 20px}
+header h1{margin:0 0 4px;font:700 1.7rem Georgia,serif}
+header p{margin:0;opacity:.85;max-width:60ch}
+main{max-width:1100px;margin:0 auto;padding:20px;display:grid;gap:20px}
+section{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:20px}
+h2{margin:0 0 14px;font:700 1.2rem Georgia,serif;color:var(--navy)}
+.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+label{display:block;font-weight:600;font-size:.9rem;margin-bottom:4px}
+input,select,textarea{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:6px;font:inherit;background:#fff}
+input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible{outline:3px solid #9cc0ff;outline-offset:1px}
+.full{grid-column:1/-1}
+button{font:inherit;font-weight:600;border:0;border-radius:6px;padding:10px 18px;background:var(--sky);color:#fff;cursor:pointer}
+button.alt{background:#fff;color:var(--navy);border:1px solid var(--navy)}
+button:disabled{opacity:.55;cursor:wait}
+details{margin-top:14px;font-size:.9rem;color:var(--muted)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:16px}
+#loading{display:none;align-items:center;gap:10px;color:var(--muted)}
+.spin{width:20px;height:20px;border:3px solid var(--line);border-top-color:var(--sky);border-radius:50%;animation:s 1s linear infinite}
+@keyframes s{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation-duration:3s}}
+#err{color:var(--hi);font-weight:600;margin-top:10px}
+#out{display:none;gap:20px}
+.cards{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}
+.card{border:1px solid var(--line);border-left:6px solid var(--line);border-radius:var(--r);padding:12px 14px;background:#fff}
+.card.High{border-left-color:var(--hi)}.card.Medium{border-left-color:var(--md)}.card.Low{border-left-color:var(--lo)}
+.badge{font-size:.78rem;font-weight:700;padding:2px 8px;border-radius:99px;color:#fff}
+.badge.High{background:var(--hi)}.badge.Medium{background:var(--md)}.badge.Low{background:var(--lo)}
+.card h3{margin:6px 0 4px;font-size:1.02rem}
+.card p{margin:3px 0;font-size:.9rem;color:var(--muted)}
+.card label{display:flex;gap:8px;align-items:center;font-weight:600;margin-top:8px;cursor:pointer}
+.card label input{width:auto}
+.bar{height:16px;background:#e5ebf5;border-radius:99px;overflow:hidden}
+.bar>div{height:100%;width:0;background:var(--lo);transition:width .3s}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:560px}
+th,td{border-bottom:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top;font-size:.92rem}
+th{background:#eef3fb;color:var(--navy)}
+ul{margin:0;padding-left:20px}li{margin:4px 0}
+.two{display:grid;gap:20px;grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.q{border-top:1px solid var(--line);padding:10px 0}
+.q summary{cursor:pointer;color:var(--ink);font-weight:600}
+</style>
+</head>
+<body>
+<header>
+  <h1>📚 AI Study Planner</h1>
+  <p>Enter your subject, topics, daily hours and exam date. Generative AI builds a plan around you.</p>
+</header>
+<main>
+<section>
+  <h2>🎓 Student details</h2>
+  <div class="grid">
+    <div><label for="name">Student name</label><input id="name" value="Rahul"></div>
+    <div><label for="subject">Subject</label><input id="subject" value="Generative Artificial Intelligence"></div>
+    <div><label for="hours">Study hours per day</label><input id="hours" type="number" min="0.5" max="16" step="0.5" value="3"></div>
+    <div><label for="exam">Exam date</label><input id="exam" type="date"></div>
+    <div><label for="level">Knowledge level</label>
+      <select id="level"><option>Beginner</option><option>Intermediate</option><option>Advanced</option></select></div>
+    <div><label for="pstyle">Prompt style (Step E)</label>
+      <select id="pstyle"><option value="basic">1 – Basic</option><option value="structured">2 – Structured</option><option value="advanced" selected>3 – Advanced</option></select></div>
+    <div class="full"><label for="topics">Topics (one per line)</label>
+      <textarea id="topics" rows="6">Introduction to Generative AI
+Neural Networks
+Transformers
+Large Language Models
+Prompt Engineering
+Generative AI Applications</textarea></div>
+  </div>
+  <details>
+    <summary>⚙️ AI connection (API key stays in this browser tab only)</summary>
+    <div class="grid" style="margin-top:10px">
+      <div><label for="endpoint">Endpoint (OpenAI-compatible)</label><input id="endpoint" value="https://opencode.ai/zen/v1/chat/completions"></div>
+      <div><label for="model">Model name</label><input id="model" placeholder="model id shown in OpenCode /models"></div>
+      <div><label for="key">API key</label><input id="key" type="password" autocomplete="off" placeholder="paste your key"></div>
+    </div>
+    <p>For a lab demo only. A production app should keep the key on a server, never in front-end code.</p>
+  </details>
+  <div class="row">
+    <button id="go">Generate Study Plan</button>
+    <div id="loading"><div class="spin"></div><span id="ltxt">Generating…</span></div>
+  </div>
+  <div id="err" role="alert"></div>
+</section>
+
+<div id="out">
+  <section>
+    <h2>🧑‍🎓 Overview</h2>
+    <div id="overview"></div>
+    <div style="margin-top:14px"><strong>Progress: <span id="pct">0%</span></strong>
+      <div class="bar" role="progressbar" aria-label="Topics completed"><div id="fill"></div></div></div>
+  </section>
+  <section><h2>🎯 Topic priorities and revision dates</h2><div class="cards" id="cards"></div></section>
+  <section><h2>🗓️ Daily timetable</h2><div class="scroll"><table id="tt"></table></div></section>
+  <div class="two">
+    <section><h2>🔁 Revision schedule</h2><ul id="rev"></ul></section>
+    <section><h2>✍️ Practice recommendations</h2><ul id="prac"></ul></section>
+  </div>
+  <div class="two">
+    <section><h2>💡 Study tips</h2><ul id="tips"></ul></section>
+    <section><h2>🏁 Exam strategy</h2><div id="strat"></div></section>
+  </div>
+  <section>
+    <h2>🧪 Quiz generator</h2>
+    <button class="alt" id="quizBtn">Generate quiz from my topics</button>
+    <div id="quiz" style="margin-top:12px"></div>
+  </section>
+</div>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const LEVEL_TIPS = {
+  Beginner: ["Start with the big picture, then go deeper: read a summary before the detailed chapter.","Explain each concept aloud in plain words, as if teaching a friend.","Keep a one-page glossary of new terms and review it every day."],
+  Intermediate: ["Skip what you already know and spend time on topics where you get questions wrong.","Mix topics in one session (interleaving) to strengthen recall.","Write answers from memory first, then compare with your notes."],
+  Advanced: ["Focus on edge cases, comparisons and 'why' questions rather than definitions.","Practise timed past-paper style questions under exam conditions.","Teach or write short essays on the hardest topics to expose gaps."]
+};
+const today = new Date();
+const iso = d => d.toISOString().slice(0,10);
+const exam = new Date(today); exam.setDate(exam.getDate()+15);
+$("exam").value = iso(exam); $("exam").min = iso(today);
+let plan = null, done = new Set();
+
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const li = a => (a||[]).map(x => `<li>${esc(x)}</li>`).join("");
+
+function buildPrompt(s){
+  const info = `Student: ${s.name}\nSubject: ${s.subject}\nTopics: ${s.topics.join("; ")}\nStudy hours per day: ${s.hours}\nKnowledge level: ${s.level}\nToday: ${s.today}\nExam date: ${s.exam} (${s.days} days left)`;
+  const prompts = {
+    basic: "Create a study plan for this student.",
+    structured: `Create a ${s.days}-day study plan and divide the topics into daily targets. Include revision and practice sessions.`,
+    advanced: "Act as an expert academic study planner. Analyze the student's subjects, available study time, knowledge level and examination date. Create an optimized study plan that prioritizes difficult and important topics. Balance learning, practice and revision. Explain why each topic has been assigned its priority and provide an exam-focused revision strategy."
+  };
+  const schema = `Reply with ONLY valid JSON (no markdown) in this shape:
+{"summary":"2-3 sentences","topics":[{"name":"","priority":"High|Medium|Low","difficulty":"Easy|Medium|Hard","hours":0,"why":"reason for priority","revisionDate":"YYYY-MM-DD","practice":"specific practice activity"}],
+"days":[{"day":1,"date":"YYYY-MM-DD","sessions":[{"topic":"","minutes":0,"activity":"learn|practice|revise"}]}],
+"revision":["dated revision milestones"],"practice":["practice recommendations"],"tips":["tips"],"examStrategy":"exam-focused strategy","finalRevision":"final revision strategy"}
+Rules: use every given topic exactly once in "topics"; daily session minutes must not exceed ${s.hours*60}; cover every day from today until the day before the exam; revision dates must be before the exam date.`;
+  return `${prompts[s.style]}\n\n${info}\n\n${schema}`;
+}
+
+async function callAI(prompt){
+  const key = $("key").value.trim(), model = $("model").value.trim(), url = $("endpoint").value.trim();
+  if(!key || !model) throw new Error("Open 'AI connection' and enter your API key and model name.");
+  const r = await fetch(url, {method:"POST",
+    headers:{"Content-Type":"application/json","Authorization":"Bearer "+key},
+    body:JSON.stringify({model, messages:[
+      {role:"system",content:"You are a precise academic study planner. Output only the requested JSON."},
+      {role:"user",content:prompt}]})});
+  if(!r.ok) throw new Error(`AI request failed (${r.status}). Check the key, model name and endpoint.`);
+  const data = await r.json();
+  const text = data.choices?.[0]?.message?.content || "";
+  const a = text.indexOf("{"), b = text.lastIndexOf("}");
+  if(a<0||b<0) throw new Error("The AI reply was not JSON. Try again.");
+  return JSON.parse(text.slice(a,b+1));
+}
+
+function busy(on, txt){ $("go").disabled=$("quizBtn").disabled=on; $("loading").style.display=on?"flex":"none"; if(txt) $("ltxt").textContent=txt; }
+
+$("go").onclick = async () => {
+  $("err").textContent = "";
+  const topics = $("topics").value.split("\n").map(t=>t.trim()).filter(Boolean);
+  const hours = parseFloat($("hours").value), examD = $("exam").value;
+  const days = Math.ceil((new Date(examD) - new Date(iso(today))) / 864e5);
+  if(!$("name").value.trim() || !$("subject").value.trim() || !topics.length || !(hours>0) || !examD || days<1){
+    $("err").textContent = "Fill in every field, add at least one topic, and pick a future exam date."; return; }
+  const s = {name:$("name").value.trim(), subject:$("subject").value.trim(), topics, hours, level:$("level").value,
+    exam:examD, days, today:iso(today), style:$("pstyle").value};
+  busy(true,"Generating your plan…");
+  try{ plan = await callAI(buildPrompt(s)); plan.student = s; done = new Set(); render(); }
+  catch(e){ $("err").textContent = e.message; }
+  busy(false);
+};
+
+function render(){
+  const s = plan.student;
+  $("out").style.display = "grid";
+  $("overview").innerHTML = `<p><strong>${esc(s.name)}</strong> · ${esc(s.subject)} · exam on <strong>${esc(s.exam)}</strong> (${s.days} days) · ${s.hours} h/day · ${esc(s.level)}</p><p>${esc(plan.summary)}</p>`;
+  $("cards").innerHTML = (plan.topics||[]).map((t,i)=>`<div class="card ${esc(t.priority)}">
+    <span class="badge ${esc(t.priority)}">${esc(t.priority)} priority</span>
+    <h3>${esc(t.name)}</h3>
+    <p>⏱ ${esc(t.hours)} h · Difficulty: ${esc(t.difficulty)}</p>
+    <p>${esc(t.why)}</p>
+    <p>🔁 Revise on <strong>${esc(t.revisionDate)}</strong></p>
+    <p>✍️ ${esc(t.practice)}</p>
+    <label><input type="checkbox" data-i="${i}"> Completed</label></div>`).join("");
+  document.querySelectorAll("#cards input").forEach(c => c.onchange = () => {
+    c.checked ? done.add(c.dataset.i) : done.delete(c.dataset.i); progress(); });
+  $("tt").innerHTML = `<tr><th>Day</th><th>Date</th><th>Topic</th><th>Time</th><th>Activity</th></tr>` +
+    (plan.days||[]).flatMap(d => (d.sessions||[]).map((x,i)=>`<tr><td>${i?"":esc(d.day)}</td><td>${i?"":esc(d.date)}</td><td>${esc(x.topic)}</td><td>${esc(x.minutes)} min</td><td>${esc(x.activity)}</td></tr>`)).join("");
+  $("rev").innerHTML = li(plan.revision);
+  $("prac").innerHTML = li(plan.practice);
+  $("tips").innerHTML = li(LEVEL_TIPS[s.level]) + li(plan.tips);
+  $("strat").innerHTML = `<p>${esc(plan.examStrategy)}</p><p><strong>Final revision:</strong> ${esc(plan.finalRevision)}</p>`;
+  $("quiz").innerHTML = ""; progress();
+  $("out").scrollIntoView({behavior:"smooth"});
+}
+function progress(){
+  const n = (plan.topics||[]).length || 1, p = Math.round(done.size/n*100);
+  $("pct").textContent = p+"% ("+done.size+" of "+n+" topics)"; $("fill").style.width = p+"%";
+}
+
+$("quizBtn").onclick = async () => {
+  $("err").textContent = "";
+  const s = plan.student;
+  const prompt = `Create a quiz for the subject "${s.subject}" at ${s.level} level, covering these topics: ${s.topics.join("; ")}.
+Reply with ONLY valid JSON: {"mcqs":[{"q":"","options":["A","B","C","D"],"answer":"exact text of correct option","difficulty":"Easy|Medium|Hard","explanation":""}],"short":[{"q":"","answer":"","difficulty":"Easy|Medium|Hard","explanation":""}]}
+Exactly 5 mcqs and 5 short-answer questions.`;
+  busy(true,"Writing your quiz…");
+  try{
+    const z = await callAI(prompt);
+    $("quiz").innerHTML = [...(z.mcqs||[]).map((m,i)=>`<div class="q"><strong>MCQ ${i+1} (${esc(m.difficulty)}):</strong> ${esc(m.q)}
+      <ul>${li(m.options)}</ul><details><summary>Show answer</summary><p><strong>${esc(m.answer)}</strong></p><p>${esc(m.explanation)}</p></details></div>`),
+      ...(z.short||[]).map((m,i)=>`<div class="q"><strong>Short ${i+1} (${esc(m.difficulty)}):</strong> ${esc(m.q)}
+      <details><summary>Show answer</summary><p><strong>${esc(m.answer)}</strong></p><p>${esc(m.explanation)}</p></details></div>`)].join("");
+  }catch(e){ $("err").textContent = e.message; }
+  busy(false);
+};
+</script>
+</body>
+</html>
